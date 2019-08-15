@@ -22,14 +22,15 @@ const diorama = new Diorama({
   middleware: backwardCompatibilityMiddleware,
 })
 
-diorama.registerScenario("description of example test", async (s, t, { alice }) => {
+diorama.registerScenario("Test hello holo", async (s, t, { alice }) => {
   // Make a call to a Zome function
   // indicating the function, and passing it an input
-  const addr = await alice.call("my_zome", "create_my_entry", {"entry" : {"content":"sample content"}})
-  const result = await alice.call("my_zome", "get_my_entry", {"address": addr.Ok})
+  const result = await alice.call("hello", "hello_holo", {});
+  // Make sure the result is ok.
+  t.ok(result.Ok);
 
   // check for equality of the actual and expected results
-  t.deepEqual(result, { Ok: { App: [ 'my_entry', '{"content":"sample content"}' ] } })
+  t.deepEqual(result, { Ok: 'Hello Holo' })
 })
 
 diorama.run()
