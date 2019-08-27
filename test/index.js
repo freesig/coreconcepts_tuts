@@ -22,14 +22,16 @@ const diorama = new Diorama({
   middleware: backwardCompatibilityMiddleware,
 })
 
+// Register a test scenario that checks `hello_holo()`
+// returns the correct value.
 diorama.registerScenario("Test hello holo", async (s, t, { alice }) => {
-  // Make a call to a Zome function
-  // indicating the function, and passing it an input
+  // Make a call to the `hello_holo` Zome function
+  // passing no arguments.
   const result = await alice.call("hello", "hello_holo", {});
   // Make sure the result is ok.
   t.ok(result.Ok);
 
-  // check for equality of the actual and expected results
+  // Check that the result matches what you expected.
   t.deepEqual(result, { Ok: 'Hello Holo' })
 })
 
