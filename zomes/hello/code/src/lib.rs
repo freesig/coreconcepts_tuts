@@ -34,9 +34,12 @@ use hdk_proc_macros::zome;
 // This is a sample zome that defines an entry type "MyEntry" that can be committed to the
 // agent's chain via the exposed function create_my_entry
 
+// Allow this struct to be easily converted to and from JSON
 #[derive(Serialize, Deserialize, Debug, DefaultJson,Clone)]
-pub struct MyEntry {
-    content: String,
+// Represent a person as a struct that holds
+// their name as a String.
+pub struct Person{
+    name: String,
 }
 
 #[zome]
@@ -47,30 +50,40 @@ mod my_zome {
         Ok(())
     }
 
+    // Turn this function into an entry definition.
     #[entry_def]
-     fn my_entry_def() -> ValidatingEntryType {
+    fn person_entry_def() -> ValidatingEntryType {
+        // A macro that lets you easily create a `ValidatingEntryType`.
         entry!(
-            name: "my_entry",
-            description: "this is a same entry defintion",
-            sharing: Sharing::Public,
+            // The name of the entry.
+            // This should be the lowercase version of
+            // the struct name `Person`.
+            name: "person",
+            description: "Person to say hello to",
+            // This is a private entry in your source chain.
+            sharing: Sharing::Private,
+            // Says what is needed to validate this entry.
+            // In this case just the Entry.
             validation_package: || {
                 hdk::ValidationPackageDefinition::Entry
             },
-            validation: | _validation_data: hdk::EntryValidationData<MyEntry>| {
+            // Validates this entry.
+            // Returns that this entry is always Ok as long as it type checks.
+            validation: | _validation_data: hdk::EntryValidationData<Person>| {
                 Ok(())
             }
         )
     }
 
     #[zome_fn("hc_public")]
-    fn create_my_entry(entry: MyEntry) -> ZomeApiResult<Address> {
-        let entry = Entry::App("my_entry".into(), entry.into());
+    pub fn create_person(person: Person) -> ZomeApiResult<Address> {
+        let entry = Entry::App("person".into(), person.into());
         let address = hdk::commit_entry(&entry)?;
         Ok(address)
     }
 
     #[zome_fn("hc_public")]
-    fn get_my_entry(address: Address) -> ZomeApiResult<Option<Entry>> {
+    fn retrieve_person(address: Address) -> ZomeApiResult<Option<Entry>> {
         hdk::get_entry(&address)
     }
 
