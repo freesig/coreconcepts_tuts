@@ -29,6 +29,32 @@ mod hello_zome {
     #[validate_agent]
     pub fn validate_agent(validation_data: EntryValidationData<AgentId>) {
         Ok(())
+
+    #[entry_def]
+    fn person_entry_def() -> ValidatingEntryType {
+        entry!(
+            name: "person",
+            description: "Person to say hello to",
+            sharing: Sharing::Private,
+            validation_package: || {
+                hdk::ValidationPackageDefinition::Entry
+            },
+            validation: | _validation_data: hdk::EntryValidationData<Person>| {
+                Ok(())
+            }
+        )
+    }
+
+    #[zome_fn("hc_public")]
+    pub fn create_person(person: Person) -> ZomeApiResult<Address> {
+        let entry = Entry::App("person".into(), person.into());
+        let address = hdk::commit_entry(&entry)?;
+        Ok(address)
+    }
+
+    #[zome_fn("hc_public")]
+    fn retrieve_person(address: Address) -> ZomeApiResult<Option<Entry>> {
+        hdk::get_entry(&address)
     }
 
     #[zome_fn("hc_public")]

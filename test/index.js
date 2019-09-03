@@ -33,6 +33,16 @@ diorama.registerScenario("Test hello holo", async (s, t, { alice }) => {
 
   // Check that the result matches what you expected.
   t.deepEqual(result, { Ok: 'Hello Holo' })
+  
+  const create_result = await alice.call("hello", "create_person", {"person": { "name" : "Alice" }});
+  // Make sure the result is ok.
+  t.ok(create_result.Ok);
+  
+  const retrieve_result = await alice.call("hello", "retrieve_person", {"address": create_result.Ok});
+  // Make sure the result is ok.
+  t.ok(retrieve_result.Ok);
+  
+  t.deepEqual(retrieve_result, { Ok: { App: [ 'person', '{"name":"Alice"}' ] }})
 })
 
 diorama.run()
