@@ -61,7 +61,7 @@ mod my_zome {
             name: "person",
             description: "Person to say hello to",
             // This is a private entry in your source chain.
-            sharing: Sharing::Private,
+            sharing: Sharing::Public,
             // Says what is needed to validate this entry.
             // In this case just the Entry.
             validation_package: || {

@@ -1,0 +1,39 @@
+# -----------  Agents  -----------
+[[agents]]
+  id = "test_agent1"
+  name = "Agent 1"
+  public_address = "HcScJtQkeJ4hkdqtxrdgh8jPybRynkaxmCSFZxKG6Nsf3tei6zRAnEdy97Qzeua"
+  keystore_file = "./agent1.key"
+[[agents]]
+  id = "test_agent2"
+  name = "Agent 2"
+  public_address = "HcSCinAe4uWs66r7pxnBn9xNcCJ5kivg5MqhvZ7rbmqbfzeg8e4Aun8ziwiersz" 
+  keystore_file = "./agent2.key"
+
+# -----------  DNAs  -----------
+[[dnas]]
+  id = "hello"
+  file = "dist/hello_holo.dna.json"
+  hash = "QmZcje6BoEURaX1vCrsDY11v7fHMd6spmVpzkQ1Vxp9n6D"
+[[instances]]
+  id = "hello_world"
+  dna = "hello"
+  agent = "test_agent1"
+[instances.storage]
+  type = "memory"
+[[instances]]
+  id = "hello_world2"
+  dna = "hello"
+  agent = "test_agent2"
+[instances.storage]
+  type = "memory"
+
+[[interfaces]]
+  id = "websocket_interface"
+[interfaces.driver]
+  type = "websocket"
+  port = 3401
+[[interfaces.instances]]
+  id = "hello_world"
+[[interfaces.instances]]
+  id = "hello_world2"
