@@ -24,7 +24,7 @@ const diorama = new Diorama({
 
 // Register a test scenario that checks `hello_holo()`
 // returns the correct value.
-diorama.registerScenario("Test hello holo", async (s, t, { alice }) => {
+diorama.registerScenario("Test hello holo", async (s, t, { alice, bob }) => {
   // Make a call to the `hello_holo` Zome function
   // passing no arguments.
   const result = await alice.call("hello", "hello_holo", {});
@@ -43,6 +43,12 @@ diorama.registerScenario("Test hello holo", async (s, t, { alice }) => {
   t.ok(retrieve_result.Ok);
   
   t.deepEqual(retrieve_result, { Ok: { App: [ 'person', '{"name":"Alice"}' ] }})
+  
+  const bob_retrieve_result = await bob.call("hello", "retrieve_person", {"address": create_result.Ok});
+  // Make sure the result is ok.
+  t.ok(bob_retrieve_result.Ok);
+  
+  t.deepEqual(bob_retrieve_result, { Ok: { App: [ 'person', '{"name":"Alice"}' ] }})
 })
 
 diorama.run()
