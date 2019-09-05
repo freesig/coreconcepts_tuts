@@ -17,6 +17,7 @@ use hdk::{
 use hdk::holochain_core_types::{
     entry::Entry,
     dna::entry_types::Sharing,
+    link::LinkMatch,
 };
 
 use hdk::holochain_json_api::{
@@ -35,10 +36,11 @@ use hdk_proc_macros::zome;
 // This is a sample zome that defines an entry type "MyEntry" that can be committed to the
 // agent's chain via the exposed function create_my_entry
 
-// Allow this struct to be easily converted to and from JSON
 #[derive(Serialize, Deserialize, Debug, DefaultJson,Clone)]
-pub struct Person{
-    name: String,
+pub struct Post {
+    message: String,
+    timestamp: u64,
+    author_id: Address,
 }
 
 #[zome]
@@ -55,35 +57,84 @@ mod hello_zome {
     }
 
     #[entry_def]
-    fn person_entry_def() -> ValidatingEntryType {
+    fn post_entry_def() -> ValidatingEntryType {
         entry!(
-            name: "person",
-            description: "Person to say hello to",
+            name: "post",
+            description: "A blog post",
             sharing: Sharing::Public,
             validation_package: || {
                 hdk::ValidationPackageDefinition::Entry
             },
-            validation: | _validation_data: hdk::EntryValidationData<Person>| {
+            validation: | _validation_data: hdk::EntryValidationData<Post>| {
                 Ok(())
-            }
+            },
+            links: [
+            from!(
+                "%agent_id",
+                link_type: "author_post",
+               validation_package: || {
+                   hdk::ValidationPackageDefinition::Entry
+               },
+               validation: |_validation_data: hdk::LinkValidationData| {
+                   Ok(())
+               }
+            )
+            ]
         )
     }
 
     #[zome_fn("hc_public")]
-    pub fn create_person(person: Person) -> ZomeApiResult<Address> {
-        let entry = Entry::App("person".into(), person.into());
+    pub fn create_post(message: String, timestamp: u64) -> ZomeApiResult<Address> {
+        let post = Post {
+            message,
+            timestamp,
+            author_id: hdk::AGENT_ADDRESS.clone(),
+        };
+        let entry = Entry::App("post".into(), post.into());
         let address = hdk::commit_entry(&entry)?;
+        hdk::link_entries(&hdk::AGENT_ADDRESS, &address, "author_post", "")?;
         Ok(address)
     }
 
     #[zome_fn("hc_public")]
-    fn retrieve_person(address: Address) -> ZomeApiResult<Option<Entry>> {
-        hdk::get_entry(&address)
+    fn retrieve_posts(address: Address) -> ZomeApiResult<Vec<Post>> {
+        let links = hdk::get_links(
+            &address,
+            LinkMatch::Exactly("author_post"),
+            LinkMatch::Any,
+        );
+        hdk::debug(format!("{:?}", links))?;
+        hdk::utils::get_links_and_load_type(
+            &address,
+            LinkMatch::Exactly("author_post"),
+            LinkMatch::Any,
+        )
     }
 
     #[zome_fn("hc_public")]
     fn hello_holo() -> ZomeApiResult<String> {
         Ok("Hello Holo".into())
+    }
+
+    #[zome_fn("hc_public")]
+    fn get_posts() -> ZomeApiResult<Vec<Post>> {
+        hdk::utils::get_links_and_load_type(
+            &hdk::AGENT_ADDRESS,
+            // Match the link_type exactly has_game.
+            LinkMatch::Exactly("author_post"),
+            // Match any tag.
+            LinkMatch::Any,
+        )
+    }
+
+    #[zome_fn("hc_public")]
+    fn get_agent_id() -> ZomeApiResult<Address> {
+        Ok(hdk::AGENT_ADDRESS.clone())
+    }
+
+    #[validate_agent]
+    pub fn validate_agent(validation_data: EntryValidationData<AgentId>) {
+        Ok(())
     }
 
 }
