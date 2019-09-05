@@ -16,6 +16,7 @@ use hdk::{
 use hdk::holochain_core_types::{
     entry::Entry,
     dna::entry_types::Sharing,
+    link::LinkMatch,
 };
 
 use hdk::holochain_json_api::{
@@ -34,12 +35,11 @@ use hdk_proc_macros::zome;
 // This is a sample zome that defines an entry type "MyEntry" that can be committed to the
 // agent's chain via the exposed function create_my_entry
 
-// Allow this struct to be easily converted to and from JSON
 #[derive(Serialize, Deserialize, Debug, DefaultJson,Clone)]
-// Represent a person as a struct that holds
-// their name as a String.
-pub struct Person{
-    name: String,
+pub struct Post {
+    message: String,
+    timestamp: u64,
+    author_id: Address,
 }
 
 #[zome]
@@ -52,44 +52,79 @@ mod my_zome {
 
     // Turn this function into an entry definition.
     #[entry_def]
-    fn person_entry_def() -> ValidatingEntryType {
-        // A macro that lets you easily create a `ValidatingEntryType`.
+    fn post_entry_def() -> ValidatingEntryType {
         entry!(
-            // The name of the entry.
-            // This should be the lowercase version of
-            // the struct name `Person`.
-            name: "person",
-            description: "Person to say hello to",
-            // This is a private entry in your source chain.
+            name: "post",
+            description: "A blog post",
             sharing: Sharing::Public,
-            // Says what is needed to validate this entry.
-            // In this case just the Entry.
             validation_package: || {
                 hdk::ValidationPackageDefinition::Entry
             },
-            // Validates this entry.
-            // Returns that this entry is always Ok as long as it type checks.
-            validation: | _validation_data: hdk::EntryValidationData<Person>| {
+            validation: | _validation_data: hdk::EntryValidationData<Post>| {
                 Ok(())
-            }
+            },
+            links: [
+            from!(
+                "%agent_id",
+                link_type: "author_post",
+               validation_package: || {
+                   hdk::ValidationPackageDefinition::Entry
+               },
+               validation: |_validation_data: hdk::LinkValidationData| {
+                   Ok(())
+               }
+            )
+            ]
         )
     }
 
     #[zome_fn("hc_public")]
-    pub fn create_person(person: Person) -> ZomeApiResult<Address> {
-        let entry = Entry::App("person".into(), person.into());
+    pub fn create_post(message: String, timestamp: u64) -> ZomeApiResult<Address> {
+        let post = Post {
+            message,
+            timestamp,
+            author_id: hdk::AGENT_ADDRESS.clone(),
+        };
+        let entry = Entry::App("post".into(), post.into());
         let address = hdk::commit_entry(&entry)?;
+        hdk::link_entries(&hdk::AGENT_ADDRESS, &address, "author_post", "")?;
         Ok(address)
     }
 
     #[zome_fn("hc_public")]
-    fn retrieve_person(address: Address) -> ZomeApiResult<Option<Entry>> {
-        hdk::get_entry(&address)
+    fn retrieve_posts(address: Address) -> ZomeApiResult<Vec<Post>> {
+        let links = hdk::get_links(
+            &address,
+            LinkMatch::Exactly("author_post"),
+            LinkMatch::Any,
+        );
+        hdk::debug(format!("{:?}", links))?;
+        hdk::utils::get_links_and_load_type(
+            &address,
+            LinkMatch::Exactly("author_post"),
+            LinkMatch::Any,
+        )
     }
 
     #[zome_fn("hc_public")]
     fn hello_holo() -> ZomeApiResult<String> {
         Ok("Hello Holo".into())
+    }
+
+    #[zome_fn("hc_public")]
+    fn get_posts() -> ZomeApiResult<Vec<Post>> {
+        hdk::utils::get_links_and_load_type(
+            &hdk::AGENT_ADDRESS,
+            // Match the link_type exactly has_game.
+            LinkMatch::Exactly("author_post"),
+            // Match any tag.
+            LinkMatch::Any,
+        )
+    }
+
+    #[zome_fn("hc_public")]
+    fn get_agent_id() -> ZomeApiResult<Address> {
+        Ok(hdk::AGENT_ADDRESS.clone())
     }
 
     #[validate_agent]
