@@ -14,15 +14,15 @@
 [[dnas]]
   id = "hello"
   file = "dist/hello_holo.dna.json"
-  hash = "QmZcje6BoEURaX1vCrsDY11v7fHMd6spmVpzkQ1Vxp9n6D"
+  hash = "QmS7wUJj6XZR1SBVk1idGh6bK8gN6RNSFXP2GoC8yCJUzn"
 [[instances]]
-  id = "hello_world"
+  id = "Alice"
   dna = "hello"
   agent = "test_agent1"
 [instances.storage]
   type = "memory"
 [[instances]]
-  id = "hello_world2"
+  id = "Bob"
   dna = "hello"
   agent = "test_agent2"
 [instances.storage]
@@ -34,6 +34,6 @@
   type = "websocket"
   port = 3401
 [[interfaces.instances]]
-  id = "hello_world"
+  id = "Alice"
 [[interfaces.instances]]
-  id = "hello_world2"
+  id = "Bob"
