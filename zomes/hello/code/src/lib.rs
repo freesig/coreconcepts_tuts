@@ -98,12 +98,6 @@ mod hello_zome {
 
     #[zome_fn("hc_public")]
     fn retrieve_posts(address: Address) -> ZomeApiResult<Vec<Post>> {
-        let links = hdk::get_links(
-            &address,
-            LinkMatch::Exactly("author_post"),
-            LinkMatch::Any,
-        );
-        hdk::debug(format!("{:?}", links))?;
         hdk::utils::get_links_and_load_type(
             &address,
             LinkMatch::Exactly("author_post"),
@@ -114,17 +108,6 @@ mod hello_zome {
     #[zome_fn("hc_public")]
     fn hello_holo() -> ZomeApiResult<String> {
         Ok("Hello Holo".into())
-    }
-
-    #[zome_fn("hc_public")]
-    fn get_posts() -> ZomeApiResult<Vec<Post>> {
-        hdk::utils::get_links_and_load_type(
-            &hdk::AGENT_ADDRESS,
-            // Match the link_type exactly has_game.
-            LinkMatch::Exactly("author_post"),
-            // Match any tag.
-            LinkMatch::Any,
-        )
     }
 
     #[zome_fn("hc_public")]
