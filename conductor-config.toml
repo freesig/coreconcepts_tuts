@@ -14,21 +14,19 @@
 [[dnas]]
   id = "hello"
   file = "dist/hello_holo.dna.json"
-  hash = "QmfKyAk2jXgESca2zju6QbkLqUM1xEjqDsmHRgRxoFp39q"
+  hash = "QmR6baU4F4q1qNKGX8GQrhcPbQKWGy2Ycy4EbRJoT12vp8"
 [[instances]]
   id = "Alice"
   dna = "hello"
   agent = "test_agent1"
 [instances.storage]
-  type = "file"
-  path = "storage"
+  type = "memory"
 [[instances]]
   id = "Bob"
   dna = "hello"
   agent = "test_agent2"
 [instances.storage]
-  type = "file"
-  path = "storage2"
+  type = "memory"
 
 [[interfaces]]
   id = "websocket_interface"
