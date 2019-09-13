@@ -43,6 +43,11 @@ pub struct Post {
     author_id: Address,
 }
 
+#[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
+pub struct Agent {
+    id: String,
+}
+
 #[zome]
 mod hello_zome {
 
@@ -83,6 +88,33 @@ mod hello_zome {
         )
     }
 
+    #[entry_def]
+    fn agent_entry_def() -> ValidatingEntryType {
+        entry!(
+            name: "agent",
+            description: "Hash of agent",
+            sharing: Sharing::Public,
+            validation_package: || {
+                hdk::ValidationPackageDefinition::Entry
+            },
+            validation: | _validation_data: hdk::EntryValidationData<Agent>| {
+                Ok(())
+            },
+            links: [
+            to!(
+                "post",
+                link_type: "author_post",
+               validation_package: || {
+                   hdk::ValidationPackageDefinition::Entry
+               },
+               validation: |_validation_data: hdk::LinkValidationData| {
+                   Ok(())
+               }
+            )
+            ]
+        )
+    }
+
     #[zome_fn("hc_public")]
     pub fn create_post(message: String, timestamp: u64) -> ZomeApiResult<Address> {
         let post = Post {
@@ -90,16 +122,24 @@ mod hello_zome {
             timestamp,
             author_id: hdk::AGENT_ADDRESS.clone(),
         };
+        let id: String = hdk::AGENT_ADDRESS.clone().into();
+        let agent_id = Agent { id };
+        let entry = Entry::App("agent".into(), agent_id.into());
+        let agent_address = hdk::commit_entry(&entry)?;
         let entry = Entry::App("post".into(), post.into());
         let address = hdk::commit_entry(&entry)?;
-        hdk::link_entries(&hdk::AGENT_ADDRESS, &address, "author_post", "")?;
+        hdk::link_entries(&agent_address, &address, "author_post", "")?;
         Ok(address)
     }
 
     #[zome_fn("hc_public")]
     fn retrieve_posts(address: Address) -> ZomeApiResult<Vec<Post>> {
+        let id: String = address.into();
+        let agent_id = Agent { id };
+        let entry = Entry::App("agent".into(), agent_id.into());
+        let agent_address = hdk::commit_entry(&entry)?;
         hdk::utils::get_links_and_load_type(
-            &address,
+            &agent_address,
             LinkMatch::Exactly("author_post"),
             LinkMatch::Any,
         )
@@ -113,11 +153,6 @@ mod hello_zome {
     #[zome_fn("hc_public")]
     fn get_agent_id() -> ZomeApiResult<Address> {
         Ok(hdk::AGENT_ADDRESS.clone())
-    }
-
-    #[validate_agent]
-    pub fn validate_agent(validation_data: EntryValidationData<AgentId>) {
-        Ok(())
     }
 
 }
