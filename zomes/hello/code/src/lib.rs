@@ -122,8 +122,7 @@ mod hello_zome {
             timestamp,
             author_id: hdk::AGENT_ADDRESS.clone(),
         };
-        let id: String = hdk::AGENT_ADDRESS.clone().into();
-        let agent_id = Agent { id };
+        let agent_id = Agent { id: hdk::AGENT_ADDRESS.clone().into() };
         let entry = Entry::App("agent".into(), agent_id.into());
         let agent_address = hdk::commit_entry(&entry)?;
         let entry = Entry::App("post".into(), post.into());
@@ -134,8 +133,7 @@ mod hello_zome {
 
     #[zome_fn("hc_public")]
     fn retrieve_posts(address: Address) -> ZomeApiResult<Vec<Post>> {
-        let id: String = address.into();
-        let agent_id = Agent { id };
+        let agent_id = Agent { id: address.into() };
         let entry = Entry::App("agent".into(), agent_id.into());
         let agent_address = hdk::commit_entry(&entry)?;
         hdk::utils::get_links_and_load_type(
