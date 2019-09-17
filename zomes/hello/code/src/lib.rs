@@ -58,8 +58,20 @@ mod my_zome {
                             Ok(())
                         };
                 match validation_data {
-                    hdk::EntryValidationData::Create{entry, ..} => too_long(entry.message.clone())
-                        .and_then(|_|banned(entry.author_id)),
+                    hdk::EntryValidationData::Create{entry, validation_data}=> {
+                        let chain_header = validation_data.package.chain_header;
+                        let entries = validation_data.package.source_chain_entries;
+                        let headers = validation_data.package.source_chain_headers;
+                        hdk::debug(format!("cheese chain_header {:?}", chain_header))?;
+                        for entry in entries {
+                            hdk::debug(format!("cheese entry_ {:?}", entry))?;
+                        }
+                        for header in headers {
+                            hdk::debug(format!("cheese header_ {:?}", header))?;
+                        }
+                        too_long(entry.message.clone())
+                        .and_then(|_|banned(entry.author_id))
+                    },
                     hdk::EntryValidationData::Modify{new_entry, ..} => too_long(new_entry.message.clone())
                         .and_then(|_|banned(new_entry.author_id)),
                     _ => Ok(()),
