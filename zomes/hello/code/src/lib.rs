@@ -34,6 +34,11 @@ pub struct Agent {
     id: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
+pub struct Handle {
+    name: String,
+}
+
 #[zome]
 mod my_zome {
 
@@ -131,6 +136,76 @@ mod my_zome {
         )
     }
 
+    #[entry_def]
+    fn all_handles_entry_def() -> ValidatingEntryType {
+        entry!(
+            name: "all_handles",
+            description: "Anchor to all handles",
+            sharing: Sharing::Public,
+            validation_package: || {
+                hdk::ValidationPackageDefinition::Entry
+            },
+            validation: | _validation_data: hdk::EntryValidationData<String>| {
+                Ok(())
+            },
+            links: [
+            to!(
+                "handle",
+                link_type: "registered_handles",
+               validation_package: || {
+                   hdk::ValidationPackageDefinition::Entry
+               },
+               validation: |_validation_data: hdk::LinkValidationData| {
+                   Ok(())
+               }
+            )
+            ]
+        )
+    }
+
+    #[entry_def]
+    fn handle_entry_def() -> ValidatingEntryType {
+        entry!(
+            name: "handle",
+            description: "Bloggers handle",
+            sharing: Sharing::Public,
+            validation_package: || {
+                hdk::ValidationPackageDefinition::Entry
+            },
+            validation: | _validation_data: hdk::EntryValidationData<Handle>| {
+                Ok(())
+            },
+            links: [
+            to!(
+               "agent",
+               link_type: "handle_agent",
+               validation_package: || {
+                   hdk::ValidationPackageDefinition::Entry
+               },
+               validation: |validation_data: hdk::LinkValidationData| {
+                   match validation_data {
+                       hdk::LinkValidationData::LinkAdd{ validation_data, .. } => {
+                           if let Some(entries) = validation_data.package.source_chain_entries {
+                               for entry in entries {
+                                   hdk::debug(format!("entry-yeh {:?}", entry))?;
+                               }
+                           }
+                           if let Some(headers) = validation_data.package.source_chain_headers {
+                               for header in headers {
+                                   hdk::debug(format!("header-yeh {:?}", header))?;
+                               }
+                           }
+                           //Err("Failed to link handle to agent from add".into())
+                           Ok(())
+                       },
+                       _ => Err("Failed to link handle to agent from del".into()),
+                   }
+               }
+            )
+            ]
+        )
+    }
+
     #[zome_fn("hc_public")]
     pub fn create_post(message: String, timestamp: u64) -> ZomeApiResult<Address> {
         let post = Post {
@@ -182,6 +257,20 @@ mod my_zome {
             })
             .collect();
         Ok(posts)
+    }
+
+    #[zome_fn("hc_public")]
+    pub fn create_handle(handle: String) -> ZomeApiResult<Address> {
+        let agent_id = Agent { id: hdk::AGENT_ADDRESS.clone().into() };
+        let entry = Entry::App("agent".into(), agent_id.into());
+        let agent_address = hdk::commit_entry(&entry)?;
+        let handle = Handle {
+            name: handle,
+        };
+        let entry = Entry::App("handle".into(), handle.into());
+        let handle_address = hdk::commit_entry(&entry)?;
+        hdk::link_entries(&handle_address, &agent_address, "handle_agent", "")?;
+        Ok(handle_address)
     }
 
     #[zome_fn("hc_public")]
