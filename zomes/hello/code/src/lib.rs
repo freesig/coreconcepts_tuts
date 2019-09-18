@@ -20,7 +20,6 @@ use hdk::holochain_json_api::{error::JsonError, json::JsonString};
 
 use hdk::holochain_persistence_api::cas::content::Address;
 use hdk_proc_macros::zome;
-use std::convert::TryFrom;
 
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct Post {
@@ -60,10 +59,10 @@ mod my_zome {
                 match validation_data {
                     hdk::EntryValidationData::Create{entry, validation_data}=> {
                         too_long(entry.message.clone())
-                        .and_then(|_|banned(validation_data.package))
+                        .and_then(|_|banned(entry.author_id,validation_data.package))
                     },
                     hdk::EntryValidationData::Modify{new_entry, validation_data, ..} => too_long(new_entry.message.clone())
-                        .and_then(|_|banned(validation_data.package)),
+                        .and_then(|_|banned(new_entry.author_id, validation_data.package)),
                     _ => Ok(()),
                 }
             }
@@ -223,42 +222,33 @@ mod my_zome {
 
 }
 
-fn banned(validation_package: hdk::ValidationPackage) -> Result<(), String> {
-    // Chain -> AgentId
-    // Chain -> AllLinks -> NumLinksInvalidPost
+fn banned(agent_id: Address, validation_package: hdk::ValidationPackage) -> Result<(), String> {
     let hdk::ValidationPackage {
         source_chain_entries,
-        source_chain_headers,
         ..
     } = validation_package;
-    Err(format!(
-        "{:?}\n{:?}",
-        source_chain_entries, source_chain_headers
-    ))?;
     source_chain_entries
-        .and_then(|entries| source_chain_headers.map(|headers| (entries, headers)))
         .ok_or_else(|| "No history in the chain".into())
-        .and_then(|(entries, headers)| {
-            let agent_id = entries
-                .iter()
-                .zip(headers.iter())
-                .filter_map(|(entry, header)| match entry {
-                    Entry::App(_, value) => {
-                        Agent::try_from(value).ok().map(|_| header.entry_address())
-                    }
-                    _ => None,
-                })
-                .next();
+        .and_then(|entries| {
             let count = entries
                 .into_iter()
                 .filter_map(|entry| match entry {
-                    Entry::LinkAdd(LinkData { link, .. }) => agent_id.and_then(|id| {
-                        if link.link_type() == "invalid_posts" && link.base() == id {
-                            Some(())
-                        } else {
-                            None
-                        }
-                    }),
+                    Entry::LinkAdd(LinkData {
+                        link,
+                        top_chain_header,
+                        ..
+                    }) => top_chain_header
+                        .provenances()
+                        .get(0)
+                        .and_then(|link_provenance| {
+                            if link.link_type() == "invalid_posts"
+                                && link_provenance.source() == agent_id
+                            {
+                                Some(())
+                            } else {
+                                None
+                            }
+                        }),
                     _ => None,
                 })
                 .count();

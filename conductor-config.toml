@@ -14,7 +14,7 @@
 [[dnas]]
   id = "hello"
   file = "dist/hello_holo.dna.json"
-  hash = "QmSkd1WerxX7c3P4Z2EJRRWvaCzekHHGwj5Zsno6XFaPBz"
+  hash = "QmZ62y6VPB6w2ineqzaid8XzuM6ZqG25dCpst9SC57d5N1" 
 [[instances]]
   id = "Alice"
   dna = "hello"
