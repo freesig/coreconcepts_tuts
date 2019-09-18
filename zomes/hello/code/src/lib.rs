@@ -9,11 +9,7 @@ extern crate serde_json;
 #[macro_use]
 extern crate holochain_json_derive;
 
-use hdk::holochain_core_types::{
-    dna::entry_types::Sharing,
-    entry::Entry,
-    link::LinkMatch,
-};
+use hdk::holochain_core_types::{dna::entry_types::Sharing, entry::Entry, link::LinkMatch};
 use hdk::{entry_definition::ValidatingEntryType, error::ZomeApiResult};
 
 use hdk::holochain_json_api::{error::JsonError, json::JsonString};
@@ -121,7 +117,9 @@ mod my_zome {
         let posts = addresses
             .iter()
             .filter_map(|address| {
-                hdk::utils::get_as_type(address.clone()).ok().map(|post| (address.clone(), post))
+                hdk::utils::get_as_type(address.clone())
+                    .ok()
+                    .map(|post| (address.clone(), post))
             })
             .collect();
         Ok(posts)
@@ -164,4 +162,3 @@ mod my_zome {
     }
 
 }
-
