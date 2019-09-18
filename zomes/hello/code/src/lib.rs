@@ -9,13 +9,18 @@ extern crate serde_json;
 #[macro_use]
 extern crate holochain_json_derive;
 
-use hdk::holochain_core_types::{dna::entry_types::Sharing, entry::Entry, link::LinkMatch};
+use hdk::holochain_core_types::{
+    dna::entry_types::Sharing,
+    entry::Entry,
+    link::{link_data::LinkData, LinkMatch},
+};
 use hdk::{entry_definition::ValidatingEntryType, error::ZomeApiResult};
 
 use hdk::holochain_json_api::{error::JsonError, json::JsonString};
 
 use hdk::holochain_persistence_api::cas::content::Address;
 use hdk_proc_macros::zome;
+use std::convert::TryFrom;
 
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct Post {
@@ -49,31 +54,16 @@ mod my_zome {
             description: "A blog post",
             sharing: Sharing::Public,
             validation_package: || {
-                hdk::ValidationPackageDefinition::Entry
+                hdk::ValidationPackageDefinition::ChainFull
             },
             validation: | validation_data: hdk::EntryValidationData<Post>| {
-                let too_long = |message: String| if message.len() > 140 {
-                            Err("Post is too long".into())
-                        } else {
-                            Ok(())
-                        };
                 match validation_data {
                     hdk::EntryValidationData::Create{entry, validation_data}=> {
-                        let chain_header = validation_data.package.chain_header;
-                        let entries = validation_data.package.source_chain_entries;
-                        let headers = validation_data.package.source_chain_headers;
-                        hdk::debug(format!("cheese chain_header {:?}", chain_header))?;
-                        for entry in entries {
-                            hdk::debug(format!("cheese entry_ {:?}", entry))?;
-                        }
-                        for header in headers {
-                            hdk::debug(format!("cheese header_ {:?}", header))?;
-                        }
                         too_long(entry.message.clone())
-                        .and_then(|_|banned(entry.author_id))
+                        .and_then(|_|banned(validation_data.package))
                     },
-                    hdk::EntryValidationData::Modify{new_entry, ..} => too_long(new_entry.message.clone())
-                        .and_then(|_|banned(new_entry.author_id)),
+                    hdk::EntryValidationData::Modify{new_entry, validation_data, ..} => too_long(new_entry.message.clone())
+                        .and_then(|_|banned(validation_data.package)),
                     _ => Ok(()),
                 }
             }
@@ -146,7 +136,7 @@ mod my_zome {
     #[zome_fn("hc_public")]
     pub fn create_post(message: String, timestamp: u64) -> ZomeApiResult<Address> {
         let post = Post {
-            message,
+            message: message.clone(),
             timestamp,
             author_id: hdk::AGENT_ADDRESS.clone(),
         };
@@ -156,11 +146,10 @@ mod my_zome {
         let agent_address = hdk::commit_entry(&entry)?;
         let entry = Entry::App("post".into(), post.clone().into());
         let address = hdk::commit_entry(&entry);
-        hdk::debug(format!("cheese {:?}", address)).ok();
         let address = match address {
             Ok(address) => address,
             Err(err) => {
-                if banned(post.author_id.clone()).is_ok() {
+                if too_long(message).is_err() {
                     let invalid_post = InvalidPost { post };
                     let invalid_post_entry = Entry::App("invalid_post".into(), invalid_post.into());
                     let invalid_post_address = hdk::commit_entry(&invalid_post_entry)?;
@@ -234,21 +223,57 @@ mod my_zome {
 
 }
 
-fn banned(agent_address: Address) -> Result<(), String> {
-    let agent_id = Agent { id: agent_address.to_string() };
-    let entry = Entry::App("agent".into(), agent_id.into());
-    let agent_address = hdk::commit_entry(&entry)?;
-    hdk::get_links_count(
-        &agent_address,
-        LinkMatch::Exactly("invalid_posts"),
-        LinkMatch::Any,
-    )
-    .map_err(|_| "Agent not found".into())
-    .and_then(|count| {
-        if count.count > 3 {
-            Err("This agent is banned".into())
-        } else {
-            Ok(())
-        }
-    })
+fn banned(validation_package: hdk::ValidationPackage) -> Result<(), String> {
+    // Chain -> AgentId
+    // Chain -> AllLinks -> NumLinksInvalidPost
+    let hdk::ValidationPackage {
+        source_chain_entries,
+        source_chain_headers,
+        ..
+    } = validation_package;
+    Err(format!(
+        "{:?}\n{:?}",
+        source_chain_entries, source_chain_headers
+    ))?;
+    source_chain_entries
+        .and_then(|entries| source_chain_headers.map(|headers| (entries, headers)))
+        .ok_or_else(|| "No history in the chain".into())
+        .and_then(|(entries, headers)| {
+            let agent_id = entries
+                .iter()
+                .zip(headers.iter())
+                .filter_map(|(entry, header)| match entry {
+                    Entry::App(_, value) => {
+                        Agent::try_from(value).ok().map(|_| header.entry_address())
+                    }
+                    _ => None,
+                })
+                .next();
+            let count = entries
+                .into_iter()
+                .filter_map(|entry| match entry {
+                    Entry::LinkAdd(LinkData { link, .. }) => agent_id.and_then(|id| {
+                        if link.link_type() == "invalid_posts" && link.base() == id {
+                            Some(())
+                        } else {
+                            None
+                        }
+                    }),
+                    _ => None,
+                })
+                .count();
+            if count > 3 {
+                Err("This agent is banned".into())
+            } else {
+                Ok(())
+            }
+        })
+}
+
+fn too_long(message: String) -> Result<(), String> {
+    if message.len() > 140 {
+        Err("Post is too long".into())
+    } else {
+        Ok(())
+    }
 }
